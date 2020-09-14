@@ -26,7 +26,7 @@ class EcuState : View {
      * */
     private var busMap= mutableMapOf<Int,EcuBus>()
     /** 扩展线映射 */
-    private lateinit var linkMap:Map<String,Int>
+    private lateinit var linkMap:Map<String,List<Int>>
     private var colorMap: Map<Int, String> = mapOf(
         0 to "#A16121",
         1 to "#15BABF",
@@ -198,10 +198,9 @@ class EcuState : View {
             EcusetBean(8,"EAS","8-3")
         )
          connectSet= listOf(
-            ConnectBean("1-3",8),
-            ConnectBean("1-3",7),
-            ConnectBean("1-7",2),
-            ConnectBean("4-5",5)
+            ConnectBean("1-3", listOf(8,7)),
+            ConnectBean("1-7", listOf(2)),
+            ConnectBean("4-5", listOf(5))
         )
 
 
@@ -276,14 +275,19 @@ class EcuState : View {
     private fun drawExt(canvas: Canvas) {
         rawData.connect.forEach {
             val ecuUnit=ecuMap[it.pos]
-            ecuUnit?.apply {
-                val lineColor=colorMap[it.dest]
-                val sx=x+width
-                val sy:Float=y+height/2
-                canvas.drawLine(sx,sy,sx+(widthPer-ecuWidth)/2,sy,busPaint.apply { color=Color.parseColor(lineColor) })
-                busMap[it.dest]?.apply {
-                    canvas.drawLine(sx+(widthPer-ecuWidth)/2,sy,sx+(widthPer-ecuWidth)/2,endY,busPaint)
+            it.dest.forEachIndexed{
+                index,linkBusid->
+                ecuUnit?.apply {
+                    val lineColor=colorMap[linkBusid]
+                    val sx=x+width
+                    val sy:Float=y+height/2
+                    canvas.drawLine(sx,sy,sx+(widthPer-ecuWidth)/2,sy,busPaint.apply { color=Color.parseColor(lineColor) })
+                    busMap[linkBusid]?.apply {
+                        canvas.drawLine(sx+(widthPer-ecuWidth)/2,sy,sx+(widthPer-ecuWidth)/2,endY,busPaint)
+                    }
                 }
+
+
             }
         }
     }

@@ -15,4 +15,4 @@ data class BussetBean(val busname: String,val bustype: Int)
     
 data class EcusetBean(val bustype: Int,val ecuname: String,val pos: String)
     
-data class ConnectBean(val pos: String,val dest: Int)
+data class ConnectBean(val pos: String,val dest: List<Int>)
