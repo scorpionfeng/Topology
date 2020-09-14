@@ -51,6 +51,9 @@ class EcuState : View {
     /** ecu左右的空白距离 */
     val ecuMargin:Float=20.0f
 
+    /** 连接点偏移量 */
+    val linkPointOffset:Float= 5.0F
+
 
 
     /** can线画笔 */
@@ -198,9 +201,10 @@ class EcuState : View {
             EcusetBean(8,"EAS","8-3")
         )
          connectSet= listOf(
-            ConnectBean("1-3", listOf(8,7)),
+            ConnectBean("1-3", listOf(8,7,4)),
             ConnectBean("1-7", listOf(2)),
-            ConnectBean("4-5", listOf(5))
+            ConnectBean("4-5", listOf(5)),
+             ConnectBean("2-2", listOf(1))
         )
 
 
@@ -279,11 +283,25 @@ class EcuState : View {
                 index,linkBusid->
                 ecuUnit?.apply {
                     val lineColor=colorMap[linkBusid]
+
+                    val upon=busId<linkBusid
+                    val horOffset=if(upon)-index*linkPointOffset else index*linkPointOffset
                     val sx=x+width
                     val sy:Float=y+height/2
-                    canvas.drawLine(sx,sy,sx+(widthPer-ecuWidth)/2,sy,busPaint.apply { color=Color.parseColor(lineColor) })
+                    canvas.drawLine(
+                        sx,
+                        sy-horOffset,
+                        sx+(widthPer-ecuWidth)/2+horOffset,
+                        sy-horOffset,
+                         busPaint.apply { color=Color.parseColor(lineColor) })
+
                     busMap[linkBusid]?.apply {
-                        canvas.drawLine(sx+(widthPer-ecuWidth)/2,sy,sx+(widthPer-ecuWidth)/2,endY,busPaint)
+                        canvas.drawLine(
+                            sx+(widthPer-ecuWidth)/2+horOffset,
+                            sy-horOffset,
+                            sx+(widthPer-ecuWidth)/2+horOffset,
+                             endY,
+                             busPaint)
                     }
                 }
 
