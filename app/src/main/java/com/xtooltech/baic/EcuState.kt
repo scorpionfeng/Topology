@@ -5,10 +5,13 @@ import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
+import java.nio.channels.FileLock
 
 class EcuState : View {
 
 
+    /** 当前缩放scale */
+    private var destScale: Float=1.0f
     private lateinit var data_ecubuss: MutableList<EcuBus>
     /** 连接线映射
      * id->名称
@@ -210,8 +213,9 @@ class EcuState : View {
 
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
 
+        canvas.save()
+        canvas.scale(destScale,destScale)
         val paddingLeft = paddingLeft
         val paddingTop = paddingTop
         val paddingRight = paddingRight
@@ -248,6 +252,7 @@ class EcuState : View {
         /** 3.创建扩展线条 */
         drawExt(canvas)
 
+        canvas.restore()
     }
 
     private fun drawEcus(canvas:Canvas){
@@ -337,6 +342,16 @@ class EcuState : View {
             }
         }
         return ecuUnits
+    }
+
+    fun zoomIn(scale:Float){
+        this.destScale+=scale
+        invalidate()
+    }
+
+    fun zoomOut(scale: Float){
+        this.destScale-=scale
+        invalidate()
     }
 
 
