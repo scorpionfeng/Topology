@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.activity_main.view.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -15,7 +16,9 @@ class MainActivity : AppCompatActivity() {
         ecuState=findViewById(R.id.ecustate)
     }
 
-    fun click_move(view: View) {}
+    fun click_move(view: View) {
+        ecustate.dragMove()
+    }
     fun click_zout(view: View) {
         ecuState.zoomOut(0.2F)
     }

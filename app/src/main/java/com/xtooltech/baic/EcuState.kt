@@ -2,13 +2,24 @@ package com.xtooltech.baic
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.*
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.util.AttributeSet
+import android.util.Log
+import android.view.MotionEvent
 import android.view.View
-import java.nio.channels.FileLock
 
 class EcuState : View {
 
+
+    private var dragStarty: Float=0.0f;
+    private var dragStartx: Float=0.0f
+    private var distanceH: Float=0.0f;
+    private var distanceV: Float=0.0f
+    private   var  destMovex: Float=0.0f
+    private  var  destMovey: Float=0.0f
 
     /** 当前缩放scale */
     private var destScale: Float=1.0f
@@ -216,6 +227,7 @@ class EcuState : View {
 
         canvas.save()
         canvas.scale(destScale,destScale)
+        canvas.translate(destMovex, destMovey)
         val paddingLeft = paddingLeft
         val paddingTop = paddingTop
         val paddingRight = paddingRight
@@ -344,13 +356,50 @@ class EcuState : View {
         return ecuUnits
     }
 
+    /** 放大 */
     fun zoomIn(scale:Float){
         this.destScale+=scale
         invalidate()
     }
 
+    /** 缩小  */
     fun zoomOut(scale: Float){
         this.destScale-=scale
+        invalidate()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+
+        when(event?.action){
+            MotionEvent.ACTION_DOWN->{
+                this.dragStartx=event.x-this.distanceH
+                this.dragStarty=event.y-this.distanceV
+                Log.i("ken", "onTouchEvent: start= "+event.x+" >> "+event.y+"____x= "+this.dragStartx+" ___y= "+this.dragStarty)
+                return true
+            }
+            MotionEvent.ACTION_MOVE->{
+                destMovex=event.x-this.dragStartx
+                destMovey=event.y-this.dragStarty
+                Log.i("ken", "onTouchEvent: move= "+event.x+" >> "+event.y+"____Movex= "+this.destMovex+" ___destMovey= "+this.destMovey)
+                invalidate()
+                return true
+            }
+            MotionEvent.ACTION_UP->{
+                this.distanceH=destMovex
+                this.distanceV=destMovey
+                Log.i("ken", "onTouchEvent: up= "+event.x+" >> "+event.y)
+                return true
+            }
+            else-> Log.i("ken", "onTouchEvent: ")
+
+        }
+        return super.onTouchEvent(event)
+    }
+
+    fun dragMove() {
+        this.destMovex+=10.0f
+        this.destMovey+=10.0f
         invalidate()
     }
 
