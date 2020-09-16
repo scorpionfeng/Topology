@@ -6,9 +6,6 @@ import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
 
-/**
- * TODO: document your custom view class.
- */
 class EcuState : View {
 
 
@@ -41,18 +38,18 @@ class EcuState : View {
     )
 
     /** 列宽度(默认) */
-    val widthPer:Float=150.0f
+    private val widthPer:Float=150.0f
     /** 单个ecu宽度(默认) */
-    val ecuWidth:Float=100.0f
+    private val ecuWidth:Float=100.0f
     /** 单个ecu高度(默认) */
-    val ecuHeight:Float=50.0f
+    private val ecuHeight:Float=50.0f
     /** 站立线高度(默认) */
-    val standLineHeight:Float=10.0f
+    private val standLineHeight:Float=10.0f
     /** ecu左右的空白距离 */
     val ecuMargin:Float=20.0f
 
     /** 连接点偏移量 */
-    val linkPointOffset:Float= 5.0F
+    private val linkPointOffset:Float= 5.0F
 
 
 
@@ -78,7 +75,7 @@ class EcuState : View {
     var textPaint=Paint().apply {
         style=Paint.Style.FILL
         strokeWidth=5.0f
-        textSize=10.0f
+        textSize=20.0f
         textAlign=Paint.Align.CENTER
         color=Color.WHITE
     }
@@ -204,7 +201,7 @@ class EcuState : View {
             ConnectBean("1-3", listOf(8,7,4)),
             ConnectBean("1-7", listOf(2)),
             ConnectBean("4-5", listOf(5)),
-             ConnectBean("2-2", listOf(1))
+             ConnectBean("3-2", listOf(1,2))
         )
 
 
@@ -288,17 +285,20 @@ class EcuState : View {
                     val horOffset=if(upon)-index*linkPointOffset else index*linkPointOffset
                     val sx=x+width
                     val sy:Float=y+height/2
+                    /** 位于总线下方时要翻转 */
+                    val horRevel=if(upon) 0.0f else horOffset*2
+
                     canvas.drawLine(
                         sx,
-                        sy-horOffset,
+                        sy-horOffset+horRevel,
                         sx+(widthPer-ecuWidth)/2+horOffset,
-                        sy-horOffset,
+                        sy-horOffset+horRevel,
                          busPaint.apply { color=Color.parseColor(lineColor) })
 
                     busMap[linkBusid]?.apply {
                         canvas.drawLine(
                             sx+(widthPer-ecuWidth)/2+horOffset,
-                            sy-horOffset,
+                            sy-horOffset+horRevel,
                             sx+(widthPer-ecuWidth)/2+horOffset,
                              endY,
                              busPaint)
