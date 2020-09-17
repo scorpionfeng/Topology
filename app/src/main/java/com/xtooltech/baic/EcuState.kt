@@ -13,35 +13,39 @@ import kotlin.math.roundToInt
 class EcuState : View {
 
 
-    private var moving: Boolean=false
-    private var currentTimeDown: Long=0L
+    private var moving: Boolean = false
+    private var currentTimeDown: Long = 0L
 
-    private var dragStarty: Float=0.0f;
-    private var dragStartx: Float=0.0f
-    private var distanceH: Float=0.0f;
-    private var distanceV: Float=0.0f
-    private   var  destMovex: Float=0.0f
-    private  var  destMovey: Float=0.0f
-    private var rawPointx=0.0f
-    private var rawPointy=0.0f
+    private var dragStarty: Float = 0.0f;
+    private var dragStartx: Float = 0.0f
+    private var distanceH: Float = 0.0f;
+    private var distanceV: Float = 0.0f
+    private var destMovex: Float = 0.0f
+    private var destMovey: Float = 0.0f
+    private var rawPointx = 0.0f
+    private var rawPointy = 0.0f
 
     /** 当前缩放scale */
-    private var destScale: Float=1.0f
+    private var destScale: Float = 1.0f
     private lateinit var data_ecubuss: MutableList<EcuBus>
+
     /** 连接线映射
      * id->名称
      * */
     private lateinit var busNameMap: Map<Int, String>
+
     /** ecu映射
      * pos->obj
      * */
-    private  var ecuMap= mutableMapOf<String,EcuUnit>()
+    private var ecuMap = mutableMapOf<String, EcuUnit>()
+
     /** 总线映射
      * busid->obj
      * */
-    private var busMap= mutableMapOf<Int,EcuBus>()
+    private var busMap = mutableMapOf<Int, EcuBus>()
+
     /** 扩展线映射 */
-    private lateinit var linkMap:Map<String,List<Int>>
+    private lateinit var linkMap: Map<String, List<Int>>
     private var colorMap: Map<Int, String> = mapOf(
         0 to "#A16121",
         1 to "#15BABF",
@@ -56,63 +60,66 @@ class EcuState : View {
     )
 
     /** 列宽度(默认) */
-    private val widthPer:Float=150.0f
+    private val widthPer: Float = 150.0f
+
     /** 单个ecu宽度(默认) */
-    private val ecuWidth:Float=100.0f
+    private val ecuWidth: Float = 100.0f
+
     /** 单个ecu高度(默认) */
-    private val ecuHeight:Float=50.0f
+    private val ecuHeight: Float = 50.0f
+
     /** 站立线高度(默认) */
-    private val standLineHeight:Float=10.0f
+    private val standLineHeight: Float = 10.0f
+
     /** ecu左右的空白距离 */
-    val ecuMargin:Float=20.0f
+    val ecuMargin: Float = 20.0f
 
     /** 连接点偏移量 */
-    private val linkPointOffset:Float= 5.0F
-
+    private val linkPointOffset: Float = 5.0F
 
 
     /** can线画笔 */
-    private var busPaint=Paint().apply {
-        color=Color.RED
-        isAntiAlias=true
-        isDither=true
-        style=Paint.Style.STROKE
+    private var busPaint = Paint().apply {
+        color = Color.RED
+        isAntiAlias = true
+        isDither = true
+        style = Paint.Style.STROKE
 
     }
 
 
     /** ecu形状画笔 */
-    private var ecuPaint=Paint().apply {
-        color=Color.BLACK
-        isAntiAlias=true
-        isDither=true
-        style=Paint.Style.FILL
+    private var ecuPaint = Paint().apply {
+        color = Color.BLACK
+        isAntiAlias = true
+        isDither = true
+        style = Paint.Style.FILL
 
     }
 
-    var textPaint=Paint().apply {
-        style=Paint.Style.FILL
-        strokeWidth=5.0f
-        textSize=20.0f
-        textAlign=Paint.Align.CENTER
-        color=Color.WHITE
+    var textPaint = Paint().apply {
+        style = Paint.Style.FILL
+        strokeWidth = 5.0f
+        textSize = 20.0f
+        textAlign = Paint.Align.CENTER
+        color = Color.WHITE
     }
+
     /** 获取 画笔的盒子模型 */
-    val fontMeterics=textPaint.getFontMetrics()
-    val textDistance=(fontMeterics.bottom-fontMeterics.top)/2-fontMeterics.bottom
+    val fontMeterics = textPaint.getFontMetrics()
+    val textDistance = (fontMeterics.bottom - fontMeterics.top) / 2 - fontMeterics.bottom
 
 
     private lateinit var busSet: List<BussetBean>
 
-    private  lateinit var ecuSet:List<EcusetBean>
+    private lateinit var ecuSet: List<EcusetBean>
 
-    private lateinit var connectSet:List<ConnectBean>
+    private lateinit var connectSet: List<ConnectBean>
 
-    private lateinit var rawData:BaicBean
+    private lateinit var rawData: BaicBean
 
 
-
-    var defaultBusDuration:Int=100;
+    var defaultBusDuration: Int = 100;
 
 
     constructor(context: Context) : super(context) {
@@ -142,7 +149,7 @@ class EcuState : View {
 
         mockData()
 
-        rawData=BaicBean(
+        rawData = BaicBean(
             vehname = "N60",
             gwsupport = 1,
             buscount = 8,
@@ -156,72 +163,71 @@ class EcuState : View {
 
     private fun mockData() {
 
-         busSet= listOf(
-            BussetBean("Gw",0),
-            BussetBean("EVBUS",1),
-            BussetBean("CBUS",2),
-            BussetBean("BodyBUS",3),
-            BussetBean("IBUS1",4),
-            BussetBean("IBUS2",5),
-            BussetBean("TBUS",6),
-            BussetBean("ADASBUS",7),
-            BussetBean("Thermal CAN",8)
+        busSet = listOf(
+            BussetBean("Gw", 0),
+            BussetBean("EVBUS", 1),
+            BussetBean("CBUS", 2),
+            BussetBean("BodyBUS", 3),
+            BussetBean("IBUS1", 4),
+            BussetBean("IBUS2", 5),
+            BussetBean("TBUS", 6),
+            BussetBean("ADASBUS", 7),
+            BussetBean("Thermal CAN", 8)
         )
 
 
-         ecuSet= listOf(
-            EcusetBean(0,"GW","0-1"),
-            EcusetBean(1,"BMS","1-1"),
-            EcusetBean(1,"CCU","1-2"),
-            EcusetBean(1,"ECC","1-3"),
-            EcusetBean(1,"MCUF","1-4"),
-            EcusetBean(1,"MCUR","1-5"),
-            EcusetBean(1,"PDU","1-6"),
-            EcusetBean(1,"VCU","1-7"),
-            EcusetBean(2,"SDM","2-1"),
-            EcusetBean(2,"ESP","2-2"),
-            EcusetBean(2,"EPS","2-3"),
-            EcusetBean(2,"PCU","2-4"),
-            EcusetBean(2,"IBOOSTER","2-5"),
-            EcusetBean(3,"BCM","3-1"),
-            EcusetBean(3,"ADB","3-2"),
-            EcusetBean(3,"CIM","3-3"),
-            EcusetBean(3,"OHC","3-4"),
-            EcusetBean(3,"PEPS","3-5"),
-            EcusetBean(3,"PKC","3-6"),
-            EcusetBean(3,"DSMC","3-7"),
-            EcusetBean(3,"PSM","3-8"),
-            EcusetBean(3,"PASC","3-9"),
-            EcusetBean(3,"PLGM","3-10"),
-            EcusetBean(3,"TPMS","3-11"),
-            EcusetBean(3,"VSP","3-12"),
-            EcusetBean(3,"RAC","3-13"),
-            EcusetBean(4,"PWC","4-1"),
-            EcusetBean(4,"AMP","4-2"),
-            EcusetBean(4,"PAS","4-3"),
-            EcusetBean(4,"MFS","4-4"),
-            EcusetBean(4,"ICC","4-5"),
-            EcusetBean(5,"HUD","5-1"),
-            EcusetBean(6,"TBOX","6-1"),
-            EcusetBean(7,"ADAS","7-1"),
-            EcusetBean(7,"AVAP","7-2"),
-            EcusetBean(7,"MPC","7-3"),
-            EcusetBean(7,"MRR","7-4"),
-            EcusetBean(7,"CMRR FL","7-5"),
-            EcusetBean(7,"CMRR FR","7-6"),
-            EcusetBean(7,"CMRR RL","7-7"),
-            EcusetBean(7,"CMRR RR","7-8"),
-            EcusetBean(8,"WTC_H","8-1"),
-            EcusetBean(8,"WTC_B","8-2"),
-            EcusetBean(8,"EAS","8-3")
+        ecuSet = listOf(
+            EcusetBean(0, "GW", "0-1"),
+            EcusetBean(1, "BMS", "1-1"),
+            EcusetBean(1, "CCU", "1-2"),
+            EcusetBean(1, "ECC", "1-3"),
+            EcusetBean(1, "MCUF", "1-4"),
+            EcusetBean(1, "MCUR", "1-5"),
+            EcusetBean(1, "PDU", "1-6"),
+            EcusetBean(1, "VCU", "1-7"),
+            EcusetBean(2, "SDM", "2-1"),
+            EcusetBean(2, "ESP", "2-2"),
+            EcusetBean(2, "EPS", "2-3"),
+            EcusetBean(2, "PCU", "2-4"),
+            EcusetBean(2, "IBOOSTER", "2-5"),
+            EcusetBean(3, "BCM", "3-1"),
+            EcusetBean(3, "ADB", "3-2"),
+            EcusetBean(3, "CIM", "3-3"),
+            EcusetBean(3, "OHC", "3-4"),
+            EcusetBean(3, "PEPS", "3-5"),
+            EcusetBean(3, "PKC", "3-6"),
+            EcusetBean(3, "DSMC", "3-7"),
+            EcusetBean(3, "PSM", "3-8"),
+            EcusetBean(3, "PASC", "3-9"),
+            EcusetBean(3, "PLGM", "3-10"),
+            EcusetBean(3, "TPMS", "3-11"),
+            EcusetBean(3, "VSP", "3-12"),
+            EcusetBean(3, "RAC", "3-13"),
+            EcusetBean(4, "PWC", "4-1"),
+            EcusetBean(4, "AMP", "4-2"),
+            EcusetBean(4, "PAS", "4-3"),
+            EcusetBean(4, "MFS", "4-4"),
+            EcusetBean(4, "ICC", "4-5"),
+            EcusetBean(5, "HUD", "5-1"),
+            EcusetBean(6, "TBOX", "6-1"),
+            EcusetBean(7, "ADAS", "7-1"),
+            EcusetBean(7, "AVAP", "7-2"),
+            EcusetBean(7, "MPC", "7-3"),
+            EcusetBean(7, "MRR", "7-4"),
+            EcusetBean(7, "CMRR FL", "7-5"),
+            EcusetBean(7, "CMRR FR", "7-6"),
+            EcusetBean(7, "CMRR RL", "7-7"),
+            EcusetBean(7, "CMRR RR", "7-8"),
+            EcusetBean(8, "WTC_H", "8-1"),
+            EcusetBean(8, "WTC_B", "8-2"),
+            EcusetBean(8, "EAS", "8-3")
         )
-         connectSet= listOf(
-            ConnectBean("1-3", listOf(8,7,4)),
+        connectSet = listOf(
+            ConnectBean("1-3", listOf(8, 7, 4)),
             ConnectBean("1-7", listOf(2)),
             ConnectBean("4-5", listOf(5)),
-             ConnectBean("3-2", listOf(1,2))
+            ConnectBean("3-2", listOf(1, 2))
         )
-
 
 
     }
@@ -230,7 +236,7 @@ class EcuState : View {
     override fun onDraw(canvas: Canvas) {
 
         canvas.save()
-        canvas.scale(destScale,destScale)
+        canvas.scale(destScale, destScale)
         canvas.translate(destMovex, destMovey)
         val paddingLeft = paddingLeft
         val paddingTop = paddingTop
@@ -238,10 +244,9 @@ class EcuState : View {
         val paddingBottom = paddingBottom
         val contentWidth = width - paddingLeft - paddingRight
         val contentHeight = height - paddingTop - paddingBottom
-        val contentHeightShow=contentHeight*.80f
+        val contentHeightShow = contentHeight * .80f
         //列宽度
-        val heightPer=contentHeightShow/rawData.buscount
-
+        val heightPer = contentHeightShow / rawData.buscount
 
 
         /** 创建布局对象 */
@@ -249,15 +254,24 @@ class EcuState : View {
         /** 0.canbus 字典化 */
 
 
-        busNameMap=rawData.busset.associateBy({it.bustype},{it.busname})
+        busNameMap = rawData.busset.associateBy({ it.bustype }, { it.busname })
 
-        linkMap=rawData.connect.associateBy({it.pos},{it.dest})
+        linkMap = rawData.connect.associateBy({ it.pos }, { it.dest })
 
         /** 1.创建总线 */
-         data_ecubuss= mutableListOf<EcuBus>()
+        data_ecubuss = mutableListOf<EcuBus>()
 
-        rawData.busset.forEachIndexed{index, it ->
-            EcuBus(0.0f,index*heightPer,width.toFloat(),index*heightPer,Color.parseColor(colorMap[index]),it.bustype,findBusNameBy(it),findEcuUintByBusId(it,index*heightPer)).apply {
+        rawData.busset.forEachIndexed { index, it ->
+            EcuBus(
+                0.0f,
+                index * heightPer,
+                width.toFloat(),
+                index * heightPer,
+                Color.parseColor(colorMap[index]),
+                it.bustype,
+                findBusNameBy(it),
+                findEcuUintByBusId(it, index * heightPer)
+            ).apply {
                 data_ecubuss.add(this)
                 busMap[busId] = this
             }
@@ -271,59 +285,74 @@ class EcuState : View {
         canvas.restore()
     }
 
-    private fun drawEcus(canvas:Canvas){
+    private fun drawEcus(canvas: Canvas) {
         data_ecubuss.forEach {
             /** 画主线 */
-            canvas.drawLine(it.startX,it.startY,it.endX,it.endY,busPaint.apply { color=it.color })
+            canvas.drawLine(
+                it.startX,
+                it.startY,
+                it.endX,
+                it.endY,
+                busPaint.apply { color = it.color })
             /** 画主线下面的ECU单元 */
-            it.ecus.forEach{ ecu ->
-                val rect= RectF().apply {
-                    left=ecu.x
-                    top=ecu.y
-                    right=ecu.x+ecu.width
-                    bottom=ecu.y+ecu.height
+            it.ecus.forEach { ecu ->
+                val rect = RectF().apply {
+                    left = ecu.x
+                    top = ecu.y
+                    right = ecu.x + ecu.width
+                    bottom = ecu.y + ecu.height
                 };
-                canvas.drawRect(rect,ecuPaint)
-             //   Log.i("ken","260:   [${ecu.x} - ${ecu.x+ecu.width}] [${ecu.y} - ${ecu.y+ecu.height} ] [${ecu.title}]");
+                canvas.drawRect(rect, ecuPaint)
+              //  Log.i(
+//                    "ken",
+//                    "260:   [${ecu.x} - ${ecu.x + ecu.width}] [${ecu.y} - ${ecu.y + ecu.height} ] [${ecu.title}]"
+//                );
                 /** 画支柱线 */
-                val endYSupport=if(ecu.above) rect.bottom else rect.top
-                canvas.drawLine(rect.centerX().toFloat(),it.startY,rect.centerX().toFloat(),endYSupport.toFloat(),busPaint)
+                val endYSupport = if (ecu.above) rect.bottom else rect.top
+                canvas.drawLine(
+                    rect.centerX().toFloat(),
+                    it.startY,
+                    rect.centerX().toFloat(),
+                    endYSupport.toFloat(),
+                    busPaint
+                )
                 /** 画文字 */
-                val textBaseLine:Float=rect.centerY()+textDistance
-                canvas.drawText(ecu.title,rect.centerX().toFloat(),textBaseLine,textPaint)
+                val textBaseLine: Float = rect.centerY() + textDistance
+                canvas.drawText(ecu.title, rect.centerX().toFloat(), textBaseLine, textPaint)
             }
         }
     }
 
     private fun drawExt(canvas: Canvas) {
         rawData.connect.forEach {
-            val ecuUnit=ecuMap[it.pos]
-            it.dest.forEachIndexed{
-                index,linkBusid->
+            val ecuUnit = ecuMap[it.pos]
+            it.dest.forEachIndexed { index, linkBusid ->
                 ecuUnit?.apply {
-                    val lineColor=colorMap[linkBusid]
+                    val lineColor = colorMap[linkBusid]
 
-                    val upon=busId<linkBusid
-                    val horOffset=if(upon)-index*linkPointOffset else index*linkPointOffset
-                    val sx=x+width
-                    val sy:Float=y+height/2
+                    val upon = busId < linkBusid
+                    val horOffset = if (upon) -index * linkPointOffset else index * linkPointOffset
+                    val sx = x + width
+                    val sy: Float = y + height / 2
+
                     /** 位于总线下方时要翻转 */
-                    val horRevel=if(upon) 0.0f else horOffset*2
+                    val horRevel = if (upon) 0.0f else horOffset * 2
 
                     canvas.drawLine(
                         sx,
-                        sy-horOffset+horRevel,
-                        sx+(widthPer-ecuWidth)/2+horOffset,
-                        sy-horOffset+horRevel,
-                         busPaint.apply { color=Color.parseColor(lineColor) })
+                        sy - horOffset + horRevel,
+                        sx + (widthPer - ecuWidth) / 2 + horOffset,
+                        sy - horOffset + horRevel,
+                        busPaint.apply { color = Color.parseColor(lineColor) })
 
                     busMap[linkBusid]?.apply {
                         canvas.drawLine(
-                            sx+(widthPer-ecuWidth)/2+horOffset,
-                            sy-horOffset+horRevel,
-                            sx+(widthPer-ecuWidth)/2+horOffset,
-                             endY,
-                             busPaint)
+                            sx + (widthPer - ecuWidth) / 2 + horOffset,
+                            sy - horOffset + horRevel,
+                            sx + (widthPer - ecuWidth) / 2 + horOffset,
+                            endY,
+                            busPaint
+                        )
                     }
                 }
 
@@ -336,22 +365,33 @@ class EcuState : View {
         return busNameMap[bus.bustype].toString()
     }
 
-    private fun findEcuUintByBusId(bus: BussetBean,positionY:Float): List<EcuUnit> {
-        val ecuUnits= mutableListOf<EcuUnit>()
-        var index=1
-        var sx=0.0f
-        var sy=0.0f
+    private fun findEcuUintByBusId(bus: BussetBean, positionY: Float): List<EcuUnit> {
+        val ecuUnits = mutableListOf<EcuUnit>()
+        var index = 1
+        var sx = 0.0f
+        var sy = 0.0f
         rawData.ecuset.forEach {
-            if(it.bustype==bus.bustype){
+            if (it.bustype == bus.bustype) {
                 val above = index % 2 == 1
 
-                sx=(index%2+index/2)*widthPer+ (widthPer-ecuWidth)/2
-                sy = if(above){
-                    positionY-standLineHeight-ecuHeight
-                }else{
-                    positionY+standLineHeight
+                sx = (index % 2 + index / 2) * widthPer + (widthPer - ecuWidth) / 2
+                sy = if (above) {
+                    positionY - standLineHeight - ecuHeight
+                } else {
+                    positionY + standLineHeight
                 }
-                EcuUnit(sx,sy,ecuWidth,ecuHeight,Color.BLACK,it.ecuname,it.pos,bus.bustype,above,bus.busname).apply {
+                EcuUnit(
+                    sx,
+                    sy,
+                    ecuWidth,
+                    ecuHeight,
+                    Color.BLACK,
+                    it.ecuname,
+                    it.pos,
+                    bus.bustype,
+                    above,
+                    bus.busname
+                ).apply {
                     ecuUnits.add(this)
                     ecuMap[position] = this
                 }
@@ -362,79 +402,86 @@ class EcuState : View {
     }
 
     /** 放大 */
-    fun zoomIn(scale:Float){
-        this.destScale+=scale
+    fun zoomIn(scale: Float) {
+        this.destScale += scale
         invalidate()
     }
 
     /** 缩小  */
-    fun zoomOut(scale: Float){
-        this.destScale-=scale
+    fun zoomOut(scale: Float) {
+        this.destScale -= scale
         invalidate()
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
 
-        when(event?.action){
-            MotionEvent.ACTION_DOWN->{
-                this.dragStartx=event.x-this.distanceH
-                this.dragStarty=event.y-this.distanceV
+        when (event?.action) {
+            MotionEvent.ACTION_DOWN -> {
+                this.dragStartx = event.x - this.distanceH
+                this.dragStarty = event.y - this.distanceV
 
 //                Log.i("ken  ", "nowx=:${event.x}  distanceH=${distanceH}  destScale=${destScale}")
-                Log.i("ken  ", "nowx=:${event.x}  rawx=${event.x-(distanceH*destScale)} ")
+                Log.i("ken  ", "nowx=:${event.x}  rawx=${event.x - (distanceH * destScale)} ")
 
-                rawPointx=(event.x-distanceH)/destScale
-                rawPointy=(event.y-distanceV)/destScale
+                rawPointx = (event.x - distanceH) / destScale
+                rawPointy = (event.y - distanceV) / destScale
 
                 currentTimeDown = System.currentTimeMillis()
                 return true
             }
-            MotionEvent.ACTION_MOVE->{
-                destMovex=event.x-this.dragStartx
-                destMovey=event.y-this.dragStarty
-                if(Math.abs(destMovex)>10 || Math.abs(destMovey.toInt())>10){
-                    moving=true
+            MotionEvent.ACTION_MOVE -> {
+                destMovex = event.x - this.dragStartx
+                destMovey = event.y - this.dragStarty
+                if (Math.abs(destMovex) > 10 || Math.abs(destMovey.toInt()) > 10) {
+                    moving = true
                     invalidate()
                 }
 
                 return true
             }
-            MotionEvent.ACTION_UP->{
-                this.distanceH=destMovex
-                this.distanceV=destMovey
-                val moveDuration=System.currentTimeMillis()-currentTimeDown
-                if((moveDuration>200) and moving){
+            MotionEvent.ACTION_UP -> {
+                this.distanceH = destMovex
+                this.distanceV = destMovey
+                val moveDuration = System.currentTimeMillis() - currentTimeDown
+                if ((moveDuration > 200) and moving) {
                     return true
-                }else{
-                    moving=false
-                    Thread{
-                        val ecuUnit=findEcyByPoint(rawPointx,rawPointy)
+                } else {
+                    moving = false
+                    Thread {
+                        val ecuUnit = findEcyByPoint(rawPointx, rawPointy)
                         ecuUnit?.run {
-                            Log.i("ken","388:  = "+this);
+                            Log.i("ken", "388:  = " + this.title);
                         }
                     }.start()
                 }
                 return true
             }
-            else-> Log.i("ken", "onTouchEvent: ")
+            else -> Log.i("ken", "onTouchEvent: ")
 
         }
         return super.onTouchEvent(event)
     }
 
-    private fun findEcyByPoint(px: Float, py: Float): EcuBus? {
-       val result= data_ecubuss.filter { 
-            px in it.startX .. it.endX
-        }.filter {  py in it.startY .. it.endY }
-        Log.i("ken", "findEcyByPoint: result size= ${result.size}")
-        return if(result.isNotEmpty()) result[0] else null
+    private fun findEcyByPoint(px: Float, py: Float): EcuUnit? {
+        var result: EcuUnit? = null
+        data_ecubuss.forEach  top@{
+            it.ecus.forEach { ecu ->
+//                Log.i("ken", "findEcyByPoint: px= ${px} x[ ${ecu.x} - ${ecu.x+ecu.width} ] py=${py} y [ ${ecu.y} - ${ecu.y+ecu.height} ]  contains x:${(ecu.x<px)and (px<ecu.x+ecu.width)} y:${(ecu.y<py)and (py<ecu.y+ecu.height)} title=${ecu.title}")
+                if ((px in ecu.x..ecu.x + ecu.width) and (py in ecu.y..ecu.y + ecu.height)) {
+                    Log.i("ken", "findEcyByPoint: ------= ${px} x[ ${ecu.x} - ${ecu.x+ecu.width} ] py=${py} y [ ${ecu.y} - ${ecu.y+ecu.height} ]  contains x:${(ecu.x<px)and (px<ecu.x+ecu.width)} y:${(ecu.y<py)and (py<ecu.y+ecu.height)} title=${ecu.title}")
+                    result=ecu
+                    return@top
+                }
+            }
+        }
+        return result
     }
 
     fun reset() {
-        this.destMovex=0.0f
-        this.destMovey=0.0f
-        this.destScale=1.0f
+        this.destMovex = 0.0f
+        this.destMovey = 0.0f
+        this.destScale = 1.0f
         invalidate()
     }
 
