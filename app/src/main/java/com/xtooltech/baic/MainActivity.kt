@@ -29,7 +29,8 @@ class MainActivity : AppCompatActivity() {
 
     fun click_scan(view: View) {
 
-        startActivity(Intent(this,RayActivity::class.java))
+//        startActivity(Intent(this,RayActivity::class.java))
+        startActivity(Intent(this,ScanActivity::class.java))
 
 
     }

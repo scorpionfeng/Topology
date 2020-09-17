@@ -3,16 +3,21 @@ package com.xtooltech.baic
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
+import android.graphics.PixelFormat.OPAQUE
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 class EcuState : View {
 
 
+    private var mheight: Int=0
+    private var mWidth: Int=0
+    private  var _canvas: Canvas?=null
+    private val ANIMATION_DELAY: Long=500L
+    private var sideTop: Float=0.0f
+    private val SCAN_STEP=5.0f
     private var moving: Boolean = false
     private var currentTimeDown: Long = 0L
 
@@ -24,6 +29,7 @@ class EcuState : View {
     private var destMovey: Float = 0.0f
     private var rawPointx = 0.0f
     private var rawPointy = 0.0f
+    private var ecuScan:EcuUnit?=null
 
     /** 当前缩放scale */
     private var destScale: Float = 1.0f
@@ -77,6 +83,8 @@ class EcuState : View {
     /** 连接点偏移量 */
     private val linkPointOffset: Float = 5.0F
 
+    private var scanning=false;
+
 
     /** can线画笔 */
     private var busPaint = Paint().apply {
@@ -84,6 +92,15 @@ class EcuState : View {
         isAntiAlias = true
         isDither = true
         style = Paint.Style.STROKE
+
+    }
+    /** scan线画笔 */
+    private var scanPaint = Paint().apply {
+        color = Color.BLUE
+        alpha= OPAQUE
+        isAntiAlias = true
+        isDither = true
+        style = Paint.Style.FILL
 
     }
 
@@ -149,15 +166,7 @@ class EcuState : View {
 
         mockData()
 
-        rawData = BaicBean(
-            vehname = "N60",
-            gwsupport = 1,
-            buscount = 8,
-            ecucount = 44,
-            busset = busSet,
-            ecuset = ecuSet,
-            connect = connectSet
-        )
+        initData()
 
     }
 
@@ -228,61 +237,76 @@ class EcuState : View {
             ConnectBean("4-5", listOf(5)),
             ConnectBean("3-2", listOf(1, 2))
         )
+    }
 
 
+    private fun initData() {
+
+        rawData = BaicBean(
+            vehname = "N60",
+            gwsupport = 1,
+            buscount = 8,
+            ecucount = 44,
+            busset = busSet,
+            ecuset = ecuSet,
+            connect = connectSet
+        )
+        /** 创建布局对象 */
+        /** 0.canbus 字典化 */
+        busNameMap = rawData.busset.associateBy({ it.bustype }, { it.busname })
+        linkMap = rawData.connect.associateBy({ it.pos }, { it.dest })
+        /** 1.创建总线 */
+        data_ecubuss = mutableListOf<EcuBus>()
     }
 
     @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
 
-        canvas.save()
-        canvas.scale(destScale, destScale)
-        canvas.translate(destMovex, destMovey)
-        val paddingLeft = paddingLeft
-        val paddingTop = paddingTop
-        val paddingRight = paddingRight
-        val paddingBottom = paddingBottom
-        val contentWidth = width - paddingLeft - paddingRight
-        val contentHeight = height - paddingTop - paddingBottom
-        val contentHeightShow = contentHeight * .80f
-        //列宽度
-        val heightPer = contentHeightShow / rawData.buscount
+            if(_canvas==null){
+                _canvas=canvas
+            }
 
+            Log.i("ken","255:  = ");
+            canvas.save()
+            canvas.scale(destScale, destScale)
+            canvas.translate(destMovex, destMovey)
 
-        /** 创建布局对象 */
+        if (mheight==0) {
+            mheight=height
+            val contentHeight = mheight - paddingTop - paddingBottom
+            val contentHeightShow = contentHeight * .80f
+            //列宽度
+            val heightPer = contentHeightShow / rawData.buscount
 
-        /** 0.canbus 字典化 */
-
-
-        busNameMap = rawData.busset.associateBy({ it.bustype }, { it.busname })
-
-        linkMap = rawData.connect.associateBy({ it.pos }, { it.dest })
-
-        /** 1.创建总线 */
-        data_ecubuss = mutableListOf<EcuBus>()
-
-        rawData.busset.forEachIndexed { index, it ->
-            EcuBus(
-                0.0f,
-                index * heightPer,
-                width.toFloat(),
-                index * heightPer,
-                Color.parseColor(colorMap[index]),
-                it.bustype,
-                findBusNameBy(it),
-                findEcuUintByBusId(it, index * heightPer)
-            ).apply {
-                data_ecubuss.add(this)
-                busMap[busId] = this
+            rawData.busset.forEachIndexed { index, it ->
+                EcuBus(
+                    0.0f,
+                    index * heightPer,
+                    width.toFloat(),
+                    index * heightPer,
+                    Color.parseColor(colorMap[index]),
+                    it.bustype,
+                    findBusNameBy(it),
+                    findEcuUintByBusId(it, index * heightPer)
+                ).apply {
+                    data_ecubuss.add(this)
+                    busMap[busId] = this
+                }
             }
         }
 
-        /** 2.创建单元 */
-        drawEcus(canvas)
-        /** 3.创建扩展线条 */
-        drawExt(canvas)
 
-        canvas.restore()
+
+            /** 2.创建单元 */
+            drawEcus(canvas)
+            /** 3.创建扩展线条 */
+            drawExt(canvas)
+
+            scanStart(canvas)
+
+
+            canvas.restore()
+
     }
 
     private fun drawEcus(canvas: Canvas) {
@@ -303,10 +327,6 @@ class EcuState : View {
                     bottom = ecu.y + ecu.height
                 };
                 canvas.drawRect(rect, ecuPaint)
-              //  Log.i(
-//                    "ken",
-//                    "260:   [${ecu.x} - ${ecu.x + ecu.width}] [${ecu.y} - ${ecu.y + ecu.height} ] [${ecu.title}]"
-//                );
                 /** 画支柱线 */
                 val endYSupport = if (ecu.above) rect.bottom else rect.top
                 canvas.drawLine(
@@ -416,12 +436,12 @@ class EcuState : View {
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
 
+        if(scanning) return true
+
         when (event?.action) {
             MotionEvent.ACTION_DOWN -> {
                 this.dragStartx = event.x - this.distanceH
                 this.dragStarty = event.y - this.distanceV
-
-//                Log.i("ken  ", "nowx=:${event.x}  distanceH=${distanceH}  destScale=${destScale}")
 
                 currentTimeDown = System.currentTimeMillis()
                 return true
@@ -450,6 +470,10 @@ class EcuState : View {
 
                         val ecuUnit = findEcyByPoint(rawPointx, rawPointy)
                         ecuUnit?.run {
+                            ecuScan=this
+                            scanning=true
+                            sideTop=y+10
+                            postInvalidate(x.toInt(),y.toInt(),(x+width).toInt(),(y+height).toInt())
                             Log.i("ken", "388:  = " + this.title);
                         }
                     }.start()
@@ -460,6 +484,28 @@ class EcuState : View {
 
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun scanStart(canvas: Canvas) {
+        ecuScan?.apply {
+            sideTop+=SCAN_STEP
+            if(sideTop>=y+height){
+                sideTop=y+6
+            }
+            Thread{
+                canvas.drawOval((x+10.0f)*destScale,(sideTop).toFloat()*destScale,(x+width-5.0f)*destScale,(sideTop-6.0f)*destScale,scanPaint.apply {
+                    shader=RadialGradient(x+width/2,y+height/2,Math.min(x+width/2,y+height/2),
+                        intArrayOf(Color.BLUE,Color.GREEN,Color.TRANSPARENT),null,Shader.TileMode.MIRROR)
+                })
+                if(!scanning) return@Thread
+
+                postInvalidateDelayed(ANIMATION_DELAY,(x*destScale).toInt(),(y*destScale).toInt(),((x+width)*destScale).toInt(),((y+height)*destScale).toInt())
+
+            }.start()
+
+
+        }
+
     }
 
     private fun findEcyByPoint(px: Float, py: Float): EcuUnit? {
@@ -476,7 +522,7 @@ class EcuState : View {
         }
         return result
     }
-
+/** 重置所有布局变量 */
     fun reset() {
         this.destMovex = 0.0f
         this.destMovey = 0.0f
