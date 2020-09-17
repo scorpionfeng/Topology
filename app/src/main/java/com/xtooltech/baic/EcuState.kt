@@ -422,10 +422,6 @@ class EcuState : View {
                 this.dragStarty = event.y - this.distanceV
 
 //                Log.i("ken  ", "nowx=:${event.x}  distanceH=${distanceH}  destScale=${destScale}")
-                Log.i("ken  ", "nowx=:${event.x}  rawx=${event.x - (distanceH * destScale)} ")
-
-                rawPointx = (event.x - distanceH) / destScale
-                rawPointy = (event.y - distanceV) / destScale
 
                 currentTimeDown = System.currentTimeMillis()
                 return true
@@ -437,18 +433,21 @@ class EcuState : View {
                     moving = true
                     invalidate()
                 }
-
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 this.distanceH = destMovex
                 this.distanceV = destMovey
                 val moveDuration = System.currentTimeMillis() - currentTimeDown
+                rawPointx = (event.x - distanceH) / destScale
+                rawPointy = (event.y - distanceV) / destScale
+                Log.i("ken  ", "nowx=:${event.x}  rawx=${rawPointx} ")
                 if ((moveDuration > 200) and moving) {
                     return true
                 } else {
                     moving = false
                     Thread {
+
                         val ecuUnit = findEcyByPoint(rawPointx, rawPointy)
                         ecuUnit?.run {
                             Log.i("ken", "388:  = " + this.title);
@@ -482,6 +481,8 @@ class EcuState : View {
         this.destMovex = 0.0f
         this.destMovey = 0.0f
         this.destScale = 1.0f
+        this.distanceH=0.0f
+        this.distanceV=0.0f
         invalidate()
     }
 
