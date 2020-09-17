@@ -2,17 +2,19 @@ package com.xtooltech.baic
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
+import android.graphics.*
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class EcuState : View {
 
+
+    private var moving: Boolean=false
+    private var currentTimeDown: Long=0L
 
     private var dragStarty: Float=0.0f;
     private var dragStartx: Float=0.0f
@@ -20,6 +22,8 @@ class EcuState : View {
     private var distanceV: Float=0.0f
     private   var  destMovex: Float=0.0f
     private  var  destMovey: Float=0.0f
+    private var rawPointx=0.0f
+    private var rawPointy=0.0f
 
     /** 当前缩放scale */
     private var destScale: Float=1.0f
@@ -273,13 +277,14 @@ class EcuState : View {
             canvas.drawLine(it.startX,it.startY,it.endX,it.endY,busPaint.apply { color=it.color })
             /** 画主线下面的ECU单元 */
             it.ecus.forEach{ ecu ->
-                val rect=Rect().apply {
-                    left=ecu.x.toInt()
-                    top=ecu.y.toInt()
-                    right=(ecu.x+ecu.width).toInt()
-                    bottom=(ecu.y+ecu.height).toInt()
+                val rect= RectF().apply {
+                    left=ecu.x
+                    top=ecu.y
+                    right=ecu.x+ecu.width
+                    bottom=ecu.y+ecu.height
                 };
                 canvas.drawRect(rect,ecuPaint)
+             //   Log.i("ken","260:   [${ecu.x} - ${ecu.x+ecu.width}] [${ecu.y} - ${ecu.y+ecu.height} ] [${ecu.title}]");
                 /** 画支柱线 */
                 val endYSupport=if(ecu.above) rect.bottom else rect.top
                 canvas.drawLine(rect.centerX().toFloat(),it.startY,rect.centerX().toFloat(),endYSupport.toFloat(),busPaint)
@@ -375,20 +380,41 @@ class EcuState : View {
             MotionEvent.ACTION_DOWN->{
                 this.dragStartx=event.x-this.distanceH
                 this.dragStarty=event.y-this.distanceV
-                Log.i("ken", "onTouchEvent: start= "+event.x+" >> "+event.y+"____x= "+this.dragStartx+" ___y= "+this.dragStarty)
+
+//                Log.i("ken  ", "nowx=:${event.x}  distanceH=${distanceH}  destScale=${destScale}")
+                Log.i("ken  ", "nowx=:${event.x}  rawx=${event.x-(distanceH*destScale)} ")
+
+                rawPointx=(event.x-distanceH)/destScale
+                rawPointy=(event.y-distanceV)/destScale
+
+                currentTimeDown = System.currentTimeMillis()
                 return true
             }
             MotionEvent.ACTION_MOVE->{
                 destMovex=event.x-this.dragStartx
                 destMovey=event.y-this.dragStarty
-                Log.i("ken", "onTouchEvent: move= "+event.x+" >> "+event.y+"____Movex= "+this.destMovex+" ___destMovey= "+this.destMovey)
-                invalidate()
+                if(Math.abs(destMovex)>10 || Math.abs(destMovey.toInt())>10){
+                    moving=true
+                    invalidate()
+                }
+
                 return true
             }
             MotionEvent.ACTION_UP->{
                 this.distanceH=destMovex
                 this.distanceV=destMovey
-                Log.i("ken", "onTouchEvent: up= "+event.x+" >> "+event.y)
+                val moveDuration=System.currentTimeMillis()-currentTimeDown
+                if((moveDuration>200) and moving){
+                    return true
+                }else{
+                    moving=false
+                    Thread{
+                        val ecuUnit=findEcyByPoint(rawPointx,rawPointy)
+                        ecuUnit?.run {
+                            Log.i("ken","388:  = "+this);
+                        }
+                    }.start()
+                }
                 return true
             }
             else-> Log.i("ken", "onTouchEvent: ")
@@ -397,9 +423,18 @@ class EcuState : View {
         return super.onTouchEvent(event)
     }
 
-    fun dragMove() {
-        this.destMovex+=10.0f
-        this.destMovey+=10.0f
+    private fun findEcyByPoint(px: Float, py: Float): EcuBus? {
+       val result= data_ecubuss.filter { 
+            px in it.startX .. it.endX
+        }.filter {  py in it.startY .. it.endY }
+        Log.i("ken", "findEcyByPoint: result size= ${result.size}")
+        return if(result.isNotEmpty()) result[0] else null
+    }
+
+    fun reset() {
+        this.destMovex=0.0f
+        this.destMovey=0.0f
+        this.destScale=1.0f
         invalidate()
     }
 

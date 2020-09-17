@@ -16,8 +16,8 @@ class MainActivity : AppCompatActivity() {
         ecuState=findViewById(R.id.ecustate)
     }
 
-    fun click_move(view: View) {
-        ecustate.dragMove()
+    fun click_reset(view: View) {
+        ecustate.reset()
     }
     fun click_zout(view: View) {
         ecuState.zoomOut(0.2F)
