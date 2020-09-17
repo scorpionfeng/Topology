@@ -1,5 +1,6 @@
 package com.xtooltech.baic
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
@@ -24,5 +25,12 @@ class MainActivity : AppCompatActivity() {
     }
     fun click_zin(view: View) {
         ecuState.zoomIn(0.2F)
+    }
+
+    fun click_scan(view: View) {
+
+        startActivity(Intent(this,RayActivity::class.java))
+
+
     }
 }

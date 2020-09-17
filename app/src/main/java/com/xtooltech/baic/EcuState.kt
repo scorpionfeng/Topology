@@ -441,7 +441,7 @@ class EcuState : View {
                 val moveDuration = System.currentTimeMillis() - currentTimeDown
                 rawPointx = (event.x - distanceH) / destScale
                 rawPointy = (event.y - distanceV) / destScale
-                Log.i("ken  ", "nowx=:${event.x}  rawx=${rawPointx} ")
+                Log.i("ken  ", "x=:${event.x}  rawx=${rawPointx}  y=${event.y} rawy=${rawPointy}")
                 if ((moveDuration > 200) and moving) {
                     return true
                 } else {
