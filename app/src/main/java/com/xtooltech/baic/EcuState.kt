@@ -395,7 +395,7 @@ class EcuState : View {
                 rawPointx = (event.x - distanceH) / destScale
                 rawPointy = (event.y - distanceV) / destScale
                 Log.i("ken  ", "x=:${event.x}  rawx=${rawPointx}  y=${event.y} rawy=${rawPointy}")
-                if ((moveDuration > 200) and moving) {
+                if (moveDuration > 200) {
 
                     if( scanning){
                         this._canvas?.let { scanStart(it) }
@@ -425,6 +425,9 @@ class EcuState : View {
     }
 
     private fun scanStart(canvas: Canvas) {
+
+        if(moving) return
+
         ecuScan?.apply {
             sideTop+=SCAN_STEP
             if(sideTop>=y+height){
@@ -436,24 +439,11 @@ class EcuState : View {
                 val rt = (sideTop + distanceV).toFloat() * destScale
                 val rr = (x + width - 5.0f + distanceH) * destScale
                 val rb = (sideTop - 6.0f + distanceV) * destScale
-                canvas.drawOval(
-                    rl,rt,rr,rb,
-                    scanPaint.apply {
-                        shader = RadialGradient(
-                            x + width / 2,
-                            y + height / 2,
-                            Math.min(x + width / 2, y + height / 2),
-                            intArrayOf(
-                                if (moving) Color.TRANSPARENT else Color.GREEN,
-                                Color.TRANSPARENT
-                            ),
-                            null,
-                            Shader.TileMode.MIRROR
-                        )
-                    })
-                if(!moving) {
+                    canvas.drawOval(
+                        rl,rt,rr,rb,
+                        scanPaint
+                    )
                     postInvalidateDelayed(ANIMATION_DELAY)
-                }
 
             }.start()
 
