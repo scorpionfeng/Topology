@@ -425,14 +425,14 @@ class EcuState : View {
 
     /** 放大 */
     fun zoomIn(scale: Float) {
-        if(this.destScale>=5f) return
+        if(this.destScale>=2f) return
         this.destScale += scale
         invalidate()
     }
 
     /** 缩小  */
     fun zoomOut(scale: Float) {
-        if(this.destScale<=0.2f) return
+        if(this.destScale<=0.4f) return
         this.destScale -= scale
         invalidate()
     }
