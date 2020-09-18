@@ -9,15 +9,21 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 
+typealias  onClick=(EcuUnit)->Unit
+
+
 class EcuState : View {
 
 
+    private var loadFlag: Boolean=false
     private var mheight: Int=0
     private var mWidth: Int=0
     private  var _canvas: Canvas?=null
     private val ANIMATION_DELAY: Long=300L
     private var sideTop: Float=0.0f
     private val SCAN_STEP=5.0f
+
+    private var listener:onClick?=null
 
     @Volatile
     private var moving: Boolean = false
@@ -35,7 +41,7 @@ class EcuState : View {
 
     /** 当前缩放scale */
     private var destScale: Float = 1.0f
-    private lateinit var data_ecubuss: MutableList<EcuBus>
+    private var data_ecubuss: MutableList<EcuBus> = mutableListOf()
 
     /** 连接线映射
      * id->名称
@@ -135,7 +141,7 @@ class EcuState : View {
 
     private lateinit var connectSet: List<ConnectBean>
 
-    private lateinit var rawData: BaicBean
+    private var rawData: BaicBean?=null
 
 
     var defaultBusDuration: Int = 100;
@@ -165,100 +171,14 @@ class EcuState : View {
 
         a.recycle()
 
-
-        mockData()
-
-        initData()
-
     }
 
-    private fun mockData() {
+    private fun supportData(data:BaicBean) {
 
-        busSet = listOf(
-            BussetBean("Gw", 0),
-            BussetBean("EVBUS", 1),
-            BussetBean("CBUS", 2),
-            BussetBean("BodyBUS", 3),
-            BussetBean("IBUS1", 4),
-            BussetBean("IBUS2", 5),
-            BussetBean("TBUS", 6),
-            BussetBean("ADASBUS", 7),
-            BussetBean("Thermal CAN", 8)
-        )
-
-
-        ecuSet = listOf(
-            EcusetBean(0, "GW", "0-1"),
-            EcusetBean(1, "BMS", "1-1"),
-            EcusetBean(1, "CCU", "1-2"),
-            EcusetBean(1, "ECC", "1-3"),
-            EcusetBean(1, "MCUF", "1-4"),
-            EcusetBean(1, "MCUR", "1-5"),
-            EcusetBean(1, "PDU", "1-6"),
-            EcusetBean(1, "VCU", "1-7"),
-            EcusetBean(2, "SDM", "2-1"),
-            EcusetBean(2, "ESP", "2-2"),
-            EcusetBean(2, "EPS", "2-3"),
-            EcusetBean(2, "PCU", "2-4"),
-            EcusetBean(2, "IBOOSTER", "2-5"),
-            EcusetBean(3, "BCM", "3-1"),
-            EcusetBean(3, "ADB", "3-2"),
-            EcusetBean(3, "CIM", "3-3"),
-            EcusetBean(3, "OHC", "3-4"),
-            EcusetBean(3, "PEPS", "3-5"),
-            EcusetBean(3, "PKC", "3-6"),
-            EcusetBean(3, "DSMC", "3-7"),
-            EcusetBean(3, "PSM", "3-8"),
-            EcusetBean(3, "PASC", "3-9"),
-            EcusetBean(3, "PLGM", "3-10"),
-            EcusetBean(3, "TPMS", "3-11"),
-            EcusetBean(3, "VSP", "3-12"),
-            EcusetBean(3, "RAC", "3-13"),
-            EcusetBean(4, "PWC", "4-1"),
-            EcusetBean(4, "AMP", "4-2"),
-            EcusetBean(4, "PAS", "4-3"),
-            EcusetBean(4, "MFS", "4-4"),
-            EcusetBean(4, "ICC", "4-5"),
-            EcusetBean(5, "HUD", "5-1"),
-            EcusetBean(6, "TBOX", "6-1"),
-            EcusetBean(7, "ADAS", "7-1"),
-            EcusetBean(7, "AVAP", "7-2"),
-            EcusetBean(7, "MPC", "7-3"),
-            EcusetBean(7, "MRR", "7-4"),
-            EcusetBean(7, "CMRR FL", "7-5"),
-            EcusetBean(7, "CMRR FR", "7-6"),
-            EcusetBean(7, "CMRR RL", "7-7"),
-            EcusetBean(7, "CMRR RR", "7-8"),
-            EcusetBean(8, "WTC_H", "8-1"),
-            EcusetBean(8, "WTC_B", "8-2"),
-            EcusetBean(8, "EAS", "8-3")
-        )
-        connectSet = listOf(
-            ConnectBean("1-3", listOf(8, 7, 4)),
-            ConnectBean("1-7", listOf(2)),
-            ConnectBean("4-5", listOf(5)),
-            ConnectBean("3-2", listOf(1, 2))
-        )
-    }
-
-
-    private fun initData() {
-
-        rawData = BaicBean(
-            vehname = "N60",
-            gwsupport = 1,
-            buscount = 8,
-            ecucount = 44,
-            busset = busSet,
-            ecuset = ecuSet,
-            connect = connectSet
-        )
         /** 创建布局对象 */
         /** 0.canbus 字典化 */
-        busNameMap = rawData.busset.associateBy({ it.bustype }, { it.busname })
-        linkMap = rawData.connect.associateBy({ it.pos }, { it.dest })
-        /** 1.创建总线 */
-        data_ecubuss = mutableListOf<EcuBus>()
+        busNameMap = data.busset.associateBy({ it.bustype }, { it.busname })
+        linkMap = data.connect.associateBy({ it.pos }, { it.dest })
     }
 
     @SuppressLint("DrawAllocation")
@@ -268,35 +188,37 @@ class EcuState : View {
                 _canvas=canvas
             }
 
-            Log.i("ken","255:  = ");
             canvas.save()
             canvas.scale(destScale, destScale)
             canvas.translate(destMovex, destMovey)
 
-        if (mheight==0) {
-            mheight=height
-            val contentHeight = mheight - paddingTop - paddingBottom
-            val contentHeightShow = contentHeight * .80f
-            //列宽度
-            val heightPer = contentHeightShow / rawData.buscount
+            if(loadFlag){
+                loadFlag=false;
+                mheight=height
+                val contentHeight = mheight - paddingTop - paddingBottom
+                val contentHeightShow = contentHeight * .80f
+                rawData?.apply {
+                    supportData(this)
+                    //列宽度
+                    val heightPer = contentHeightShow / buscount
 
-            rawData.busset.forEachIndexed { index, it ->
-                EcuBus(
-                    0.0f,
-                    index * heightPer,
-                    width.toFloat(),
-                    index * heightPer,
-                    Color.parseColor(colorMap[index]),
-                    it.bustype,
-                    findBusNameBy(it),
-                    findEcuUintByBusId(it, index * heightPer)
-                ).apply {
-                    data_ecubuss.add(this)
-                    busMap[busId] = this
+                    busset.forEachIndexed { index, it ->
+                        EcuBus(
+                            0.0f,
+                            index * heightPer,
+                            width.toFloat(),
+                            index * heightPer,
+                            Color.parseColor(colorMap[index]),
+                            it.bustype,
+                            findBusNameBy(it),
+                            findEcuUintByBusId(it, index * heightPer)
+                        ).apply {
+                            data_ecubuss.add(this)
+                            busMap[busId] = this
+                        }
+                    }
                 }
             }
-        }
-
 
 
             /** 2.创建单元 */
@@ -328,7 +250,7 @@ class EcuState : View {
                     right = ecu.x + ecu.width
                     bottom = ecu.y + ecu.height
                 };
-                canvas.drawRect(rect, ecuPaint)
+                canvas.drawRect(rect, ecuPaint.apply { color=ecu.color })
                 /** 画支柱线 */
                 val endYSupport = if (ecu.above) rect.bottom else rect.top
                 canvas.drawLine(
@@ -346,7 +268,7 @@ class EcuState : View {
     }
 
     private fun drawExt(canvas: Canvas) {
-        rawData.connect.forEach {
+        rawData?.connect?.forEach {
             val ecuUnit = ecuMap[it.pos]
             it.dest.forEachIndexed { index, linkBusid ->
                 ecuUnit?.apply {
@@ -392,7 +314,7 @@ class EcuState : View {
         var index = 1
         var sx = 0.0f
         var sy = 0.0f
-        rawData.ecuset.forEach {
+        rawData?.ecuset?.forEach {
             if (it.bustype == bus.bustype) {
                 val above = index % 2 == 1
 
@@ -436,6 +358,7 @@ class EcuState : View {
         this.destScale -= scale
         invalidate()
     }
+
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
@@ -482,6 +405,7 @@ class EcuState : View {
                             scanning=true
                             sideTop=y+10
                             postInvalidate(x.toInt(),y.toInt(),(x+width).toInt(),(y+height).toInt())
+                            listener?.invoke(this)
                             Log.i("ken", "388:  = " + this.title);
                         }
                     }.start()
@@ -554,6 +478,29 @@ class EcuState : View {
         this.distanceH=0.0f
         this.distanceV=0.0f
         invalidate()
+    }
+
+    /** 刷新数据 */
+    fun reload(data:BaicBean?){
+        data.apply {
+            rawData=this
+            loadFlag=true
+            invalidate()
+        }
+    }
+
+    /** 添加点击回调 */
+    fun setOnClickListener(listener:onClick){
+        this.listener=listener;
+    }
+
+    fun update(ecu:EcuUnit){
+        val findEcyByPoint = findEcyByPoint(ecu.x, ecu.y)
+        findEcyByPoint?.apply {
+            color=ecu.color
+        }
+        invalidate()
+
     }
 
 

@@ -8,11 +8,13 @@
 
     <com.xtooltech.baic.EcuState
         android:id="@+id/ecustate"
-        app:exampleColor="@color/colorPrimaryDark"
-        app:exampleString="@string/app_name"
-        app:exampleDrawable="@drawable/abc_vector_test"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        app:exampleColor="@color/colorPrimaryDark"
+        app:exampleDrawable="@drawable/abc_vector_test"
+        app:exampleString="@string/app_name"
+        tools:layout_editor_absoluteX="-52dp"
+        tools:layout_editor_absoluteY="64dp" />
 
     <Button
         android:id="@+id/zin"
@@ -53,6 +55,26 @@
         android:visibility="gone"
         android:onClick="click_scan"
         app:layout_constraintBottom_toTopOf="@+id/zout"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:onClick="click_reload"
+        android:text="reload"
+        app:layout_constraintBottom_toTopOf="@+id/zout"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="update"
+        android:onClick="click_update"
+        app:layout_constraintBottom_toTopOf="@+id/button3"
         app:layout_constraintEnd_toEndOf="parent" />
 
 
