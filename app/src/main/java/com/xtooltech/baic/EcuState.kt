@@ -473,6 +473,8 @@ class EcuState : View {
         this.destScale = 1.0f
         this.distanceH=0.0f
         this.distanceV=0.0f
+        this.scanning=false
+        this.moving=true
         invalidate()
     }
 
@@ -481,6 +483,8 @@ class EcuState : View {
         data.apply {
             rawData=this
             loadFlag=true
+            scanning=false
+            moving=true
             invalidate()
         }
     }
