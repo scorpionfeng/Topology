@@ -53,6 +53,11 @@ class EcuState : View {
      * */
     private var ecuMap = mutableMapOf<String, EcuUnit>()
 
+    /** ecu映射
+     * ecuname->obj
+     * */
+    private var ecunameMap = mutableMapOf<String, EcuUnit>()
+
     /** 总线映射
      * busid->obj
      * */
@@ -338,6 +343,7 @@ class EcuState : View {
                 ).apply {
                     ecuUnits.add(this)
                     ecuMap[position] = this
+                    ecunameMap[title]= this
                 }
                 index++
             }
@@ -494,13 +500,21 @@ class EcuState : View {
         this.listener=listener;
     }
 
+    /** 更新ecuuinit */
     fun update(ecu:EcuUnit){
         val findEcyByPoint = findEcyByPoint(ecu.x, ecu.y)
         findEcyByPoint?.apply {
             color=ecu.color
         }
         invalidate()
+    }
 
+    fun updateByName(name:String,color:Int){
+        val ecuUnit = ecunameMap[name]
+        ecuUnit?.apply {
+            this.color=color
+            invalidate()
+        }
     }
 
 

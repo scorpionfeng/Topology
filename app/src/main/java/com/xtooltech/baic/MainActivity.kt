@@ -38,13 +38,6 @@ class MainActivity : AppCompatActivity() {
         ecuState.zoomIn(0.2F)
     }
 
-    fun click_scan(view: View) {
-
-//        startActivity(Intent(this,RayActivity::class.java))
-        startActivity(Intent(this,ScanActivity::class.java))
-
-
-    }
     private fun mockData(): BaicBean {
 
         val busSet = listOf(
@@ -131,6 +124,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun click_update(view: View) {
+        ecuState.updateByName("VCU",Color.CYAN)
 
     }
 }
