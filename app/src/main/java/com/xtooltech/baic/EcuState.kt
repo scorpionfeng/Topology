@@ -15,9 +15,11 @@ class EcuState : View {
     private var mheight: Int=0
     private var mWidth: Int=0
     private  var _canvas: Canvas?=null
-    private val ANIMATION_DELAY: Long=500L
+    private val ANIMATION_DELAY: Long=300L
     private var sideTop: Float=0.0f
     private val SCAN_STEP=5.0f
+
+    @Volatile
     private var moving: Boolean = false
     private var currentTimeDown: Long = 0L
 
@@ -436,7 +438,6 @@ class EcuState : View {
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
 
-        if(scanning) return true
 
         when (event?.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -447,15 +448,16 @@ class EcuState : View {
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                moving=true
                 destMovex = event.x - this.dragStartx
                 destMovey = event.y - this.dragStarty
                 if (Math.abs(destMovex) > 10 || Math.abs(destMovey.toInt()) > 10) {
-                    moving = true
                     invalidate()
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                moving = false
                 this.distanceH = destMovex
                 this.distanceV = destMovey
                 val moveDuration = System.currentTimeMillis() - currentTimeDown
@@ -463,13 +465,17 @@ class EcuState : View {
                 rawPointy = (event.y - distanceV) / destScale
                 Log.i("ken  ", "x=:${event.x}  rawx=${rawPointx}  y=${event.y} rawy=${rawPointy}")
                 if ((moveDuration > 200) and moving) {
+
+                    if( scanning){
+                        this._canvas?.let { scanStart(it) }
+                    }
                     return true
                 } else {
-                    moving = false
+
                     Thread {
 
-                        val ecuUnit = findEcyByPoint(rawPointx, rawPointy)
-                        ecuUnit?.run {
+                        val ecuUnit = findEcyByPoint(rawPointx, rawPointy,event.x,event.y)
+                        ecuUnit?.apply {
                             ecuScan=this
                             scanning=true
                             sideTop=y+10
@@ -493,13 +499,29 @@ class EcuState : View {
                 sideTop=y+6
             }
             Thread{
-                canvas.drawOval((x+10.0f)*destScale,(sideTop).toFloat()*destScale,(x+width-5.0f)*destScale,(sideTop-6.0f)*destScale,scanPaint.apply {
-                    shader=RadialGradient(x+width/2,y+height/2,Math.min(x+width/2,y+height/2),
-                        intArrayOf(Color.BLUE,Color.GREEN,Color.TRANSPARENT),null,Shader.TileMode.MIRROR)
-                })
-                if(!scanning) return@Thread
 
-                postInvalidateDelayed(ANIMATION_DELAY,(x*destScale).toInt(),(y*destScale).toInt(),((x+width)*destScale).toInt(),((y+height)*destScale).toInt())
+                val rl = (x + 10.0f + distanceH) * destScale
+                val rt = (sideTop + distanceV).toFloat() * destScale
+                val rr = (x + width - 5.0f + distanceH) * destScale
+                val rb = (sideTop - 6.0f + distanceV) * destScale
+                canvas.drawOval(
+                    rl,rt,rr,rb,
+                    scanPaint.apply {
+                        shader = RadialGradient(
+                            x + width / 2,
+                            y + height / 2,
+                            Math.min(x + width / 2, y + height / 2),
+                            intArrayOf(
+                                if (moving) Color.TRANSPARENT else Color.GREEN,
+                                Color.TRANSPARENT
+                            ),
+                            null,
+                            Shader.TileMode.MIRROR
+                        )
+                    })
+                if(!moving) {
+                    postInvalidateDelayed(ANIMATION_DELAY)
+                }
 
             }.start()
 
@@ -508,13 +530,13 @@ class EcuState : View {
 
     }
 
-    private fun findEcyByPoint(px: Float, py: Float): EcuUnit? {
+    private fun findEcyByPoint(px: Float, py: Float,rawx:Float=0.0f,rawy:Float=0.0f ): EcuUnit? {
         var result: EcuUnit? = null
         data_ecubuss.forEach  top@{
             it.ecus.forEach { ecu ->
 //                Log.i("ken", "findEcyByPoint: px= ${px} x[ ${ecu.x} - ${ecu.x+ecu.width} ] py=${py} y [ ${ecu.y} - ${ecu.y+ecu.height} ]  contains x:${(ecu.x<px)and (px<ecu.x+ecu.width)} y:${(ecu.y<py)and (py<ecu.y+ecu.height)} title=${ecu.title}")
                 if ((px in ecu.x..ecu.x + ecu.width) and (py in ecu.y..ecu.y + ecu.height)) {
-                    Log.i("ken", "findEcyByPoint: ------= ${px} x[ ${ecu.x} - ${ecu.x+ecu.width} ] py=${py} y [ ${ecu.y} - ${ecu.y+ecu.height} ]  contains x:${(ecu.x<px)and (px<ecu.x+ecu.width)} y:${(ecu.y<py)and (py<ecu.y+ecu.height)} title=${ecu.title}")
+                    Log.i("ken", "findEcyByPoint: ------=  raw [${px} : ${py} ] range: [ ${ecu.x} - ${ecu.x+ecu.width} ]  y [ ${ecu.y} - ${ecu.y+ecu.height} ]  contains x:${(ecu.x<px)and (px<ecu.x+ecu.width)} y:${(ecu.y<py)and (py<ecu.y+ecu.height)} title=${ecu.title} show [ ${rawx} : ${rawy} ] distance:[${distanceH} :${distanceV} ]")
                     result=ecu
                     return@top
                 }
