@@ -1,9 +1,9 @@
 package com.xtooltech.baic
 
 
-data class EcuBus(val startX:Float, val startY:Float,val endX:Float,val endY:Float,val color:Int,val busId: Int,val busName: String,var ecus:List<EcuUnit>)
+data class EcuBus(var startX:Float, val startY:Float,var endX:Float,val endY:Float,val color:Int,val busId: Int,val busName: String,var ecus:List<EcuUnit>)
 
-data class EcuUnit(val x:Float,val y:Float,val width:Float,val height:Float,var color:Int,val title:String,val position:String,val busId:Int,val above:Boolean ,val busName:String)
+data class EcuUnit(var x:Float,var y:Float,var width:Float,var height:Float,var color:Int,val title:String,val position:String,val busId:Int,val above:Boolean ,val busName:String,var state:String,var index:Int)
 
 data class  Point(val x:Float,val y:Float)
 

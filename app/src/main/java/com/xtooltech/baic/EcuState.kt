@@ -8,6 +8,7 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import kotlin.math.max
 
 typealias  onClick=(EcuUnit)->Unit
 
@@ -15,15 +16,24 @@ typealias  onClick=(EcuUnit)->Unit
 class EcuState : View {
 
 
+    /** 网关图片 */
+    private var bitmapGate: Bitmap=BitmapFactory.decodeResource(resources, R.mipmap.ic_gateway);
+    /** 最深的bus线Y */
+    private var deepMax: Float=0.0f
+    private var obdWidth: Float=130.0f
+    /** bus 线延长线 */
+    private val spacing=50.0f
+    private var autoScanning: Boolean=false
     private var loadFlag: Boolean=false
     private var mheight: Int=0
     private var mWidth: Int=0
     private  var _canvas: Canvas?=null
     private val ANIMATION_DELAY: Long=300L
     private var sideTop: Float=0.0f
-    private val SCAN_STEP=5.0f
+    private val SCAN_STEP=4.0f
 
     private var listener:onClick?=null
+    private var widthMax=0.0f
 
     @Volatile
     private var moving: Boolean = false
@@ -38,6 +48,10 @@ class EcuState : View {
     private var rawPointx = 0.0f
     private var rawPointy = 0.0f
     private var ecuScan:EcuUnit?=null
+    private var textPadding=10.0f
+    /** 前一个总线的开始点,用于画总线开始的连接线 */
+    var preStartx=0.0f
+    var preStarty=0.0f
 
     /** 当前缩放scale */
     private var destScale: Float = 1.0f
@@ -79,19 +93,20 @@ class EcuState : View {
     )
 
     /** 列宽度(默认) */
-    private val widthPer: Float = 150.0f
+    private val widthPer: Float = 130.0f
 
     /** 单个ecu宽度(默认) */
-    private val ecuWidth: Float = 100.0f
+    private val ecuWidth: Float = 50.0f
 
     /** 单个ecu高度(默认) */
-    private val ecuHeight: Float = 50.0f
+    private val ecuHeight: Float = 30.0f
 
     /** 站立线高度(默认) */
-    private val standLineHeight: Float = 10.0f
+    private val standLineHeight: Float = 21.0f
 
+    private val minHeightBus=(ecuHeight+standLineHeight)*2.0f+10.0f
     /** ecu左右的空白距离 */
-    val ecuMargin: Float = 20.0f
+    val ecuMargin: Float = 10.0f
 
     /** 连接点偏移量 */
     private val linkPointOffset: Float = 5.0F
@@ -104,13 +119,23 @@ class EcuState : View {
         color = Color.RED
         isAntiAlias = true
         isDither = true
+        strokeWidth=2.0f
         style = Paint.Style.STROKE
 
+    }
+    /** can线画笔 */
+    private var startPointPaint = Paint().apply {
+        color = Color.BLACK
+        isAntiAlias = true
+        isDither = true
+        strokeWidth=2.0f
+        style = Paint.Style.STROKE
     }
     /** scan线画笔 */
     private var scanPaint = Paint().apply {
         color = Color.BLUE
         alpha= OPAQUE
+        strokeWidth=3.0f
         isAntiAlias = true
         isDither = true
         style = Paint.Style.FILL
@@ -129,8 +154,9 @@ class EcuState : View {
 
     var textPaint = Paint().apply {
         style = Paint.Style.FILL
-        strokeWidth = 5.0f
-        textSize = 20.0f
+        strokeWidth = 4.0f
+        textSize = 18.0f
+        isAntiAlias=true
         textAlign = Paint.Align.CENTER
         color = Color.WHITE
     }
@@ -169,12 +195,7 @@ class EcuState : View {
     }
 
     private fun init(attrs: AttributeSet?, defStyle: Int) {
-        // Load attributes
-        val a = context.obtainStyledAttributes(
-            attrs, R.styleable.EcuState, defStyle, 0
-        )
 
-        a.recycle()
 
     }
 
@@ -183,7 +204,11 @@ class EcuState : View {
         /** 创建布局对象 */
         /** 0.canbus 字典化 */
         busNameMap = data.busset.associateBy({ it.bustype }, { it.busname })
-        linkMap = data.connect.associateBy({ it.pos }, { it.dest })
+        data.connect?.apply {
+            takeIf { isNotEmpty() }?.let {
+                linkMap = associateBy({ it.pos }, { it.dest })
+            }
+        }
     }
 
     @SuppressLint("DrawAllocation")
@@ -201,25 +226,38 @@ class EcuState : View {
                 loadFlag=false;
                 mheight=height
                 val contentHeight = mheight - paddingTop - paddingBottom
-                val contentHeightShow = contentHeight * .80f
+                val contentHeightShow = contentHeight * 1.0f
                 rawData?.apply {
                     supportData(this)
                     //列宽度
-                    val heightPer = contentHeightShow / buscount
+                    val heightPer = Math.max(contentHeightShow / buscount,minHeightBus)
 
-                    busset.forEachIndexed { index, it ->
+                    busset.filter { it.bustype>0 }.forEachIndexed { index, it ->
                         EcuBus(
-                            0.0f,
-                            index * heightPer,
-                            width.toFloat(),
-                            index * heightPer,
-                            Color.parseColor(colorMap[index]),
+                            obdWidth,
+                                index * heightPer+minHeightBus,
+                                obdWidth+width.toFloat(),
+                                index * heightPer+minHeightBus,
+                            Color.parseColor(colorMap[it.bustype]),
                             it.bustype,
                             findBusNameBy(it),
-                            findEcuUintByBusId(it, index * heightPer)
+                            findEcuUintByBusId(it, index * heightPer+minHeightBus)
                         ).apply {
                             data_ecubuss.add(this)
                             busMap[busId] = this
+                            endX=(ecus.size/2+ if(ecus.size%2==1) 2 else 1)*widthPer+spacing
+                            endX= max(endX,widthMax)
+                            /** 更新最大长度 */
+                            widthMax=endX
+                            /** 更新中心点 */
+                            deepMax=endY
+                        }
+                    }
+                    val centerY = (deepMax+minHeightBus) / 2.0f
+                    takeIf { gwsupport==1 }?.let {
+                        val gateRect = RectF(obdWidth / 2 - 25, centerY - standLineHeight - ecuHeight, obdWidth / 2 + 25, centerY - standLineHeight)
+                        EcuUnit(gateRect.left, gateRect.right, gateRect.width(), gateRect.height(), Color.parseColor("#333333"), "GW", "0-1", 0, true, "GW", "0", 0).apply {
+                            ecunameMap[title] = this
                         }
                     }
                 }
@@ -230,23 +268,57 @@ class EcuState : View {
             drawEcus(canvas)
             /** 3.创建扩展线条 */
             drawExt(canvas)
+            /** 4.画OBD */
+            drawObd(canvas)
 
-            scanStart(canvas)
+            startScan(canvas)
 
 
             canvas.restore()
 
     }
 
+    private fun drawObd(canvas: Canvas) {
+        rawData?.run {
+            val bitmapObd=BitmapFactory.decodeResource(resources,R.mipmap.ic_obd)
+            val centerY = (deepMax+minHeightBus) / 2.0f
+            val obdRect=RectF(0.0f,centerY-bitmapObd.height/2.0f,bitmapObd.width.toFloat(),centerY+bitmapObd.height/2.0f)
+            /** obd图片 */
+            canvas.drawBitmap(bitmapObd,null,obdRect,null)
+            /** OBD横线 */
+            canvas.drawLine(bitmapObd.width.toFloat()-2, centerY,obdWidth, centerY,startPointPaint)
+            takeIf { gwsupport==1 }?.let {
+                val gateRect=RectF(obdWidth/2-25,centerY-standLineHeight-ecuHeight,obdWidth/2+25,centerY-standLineHeight)
+                val gateSrc=Rect(0, 0,bitmapGate.width,bitmapGate.height)
+                val gateDest=Rect((obdWidth/2-bitmapGate.width/2).toInt(), (centerY-standLineHeight-ecuHeight/2-bitmapGate.height/2).toInt(), (obdWidth/2+bitmapGate.width/2).toInt(), (centerY-standLineHeight-ecuHeight/2+bitmapGate.height/2).toInt())
+                canvas.drawRoundRect(gateRect,6.0f,6.0f,ecuPaint)
+                canvas.drawBitmap(bitmapGate,gateSrc,gateDest,null)
+                canvas.drawLine(obdWidth/2,centerY,obdWidth/2,centerY-standLineHeight,startPointPaint)
+                ecunameMap["GW"]?.apply {
+                    x=gateRect.left
+                    y=gateRect.top
+                    width=gateRect.width()
+                    height=gateRect.height()
+                }
+            }
+        }
+    }
     private fun drawEcus(canvas: Canvas) {
         data_ecubuss.forEach {
-            /** 画主线 */
+            /** 画主线 bus横线*/
             canvas.drawLine(
                 it.startX,
                 it.startY,
-                it.endX,
+                it.startX+widthMax,
                 it.endY,
                 busPaint.apply { color = it.color })
+            /** 画主线 bus竖线*/
+            if(preStartx!=0.0f || preStarty!=0.0f){
+                canvas.drawLine(preStartx,preStarty,it.startX,it.startY,startPointPaint)
+            }
+            preStartx=it.startX
+            preStarty=it.startY
+            /** 画主线 bus竖线  end*/
             /** 画主线下面的ECU单元 */
             it.ecus.forEach { ecu ->
                 val rect = RectF().apply {
@@ -255,7 +327,10 @@ class EcuState : View {
                     right = ecu.x + ecu.width
                     bottom = ecu.y + ecu.height
                 };
-                canvas.drawRect(rect, ecuPaint.apply { color=ecu.color })
+                canvas.drawRoundRect(rect,6.0f,6.0f, ecuPaint.apply { color=ecu.color })
+
+
+
                 /** 画支柱线 */
                 val endYSupport = if (ecu.above) rect.bottom else rect.top
                 canvas.drawLine(
@@ -319,11 +394,11 @@ class EcuState : View {
         var index = 1
         var sx = 0.0f
         var sy = 0.0f
-        rawData?.ecuset?.forEach {
+        rawData?.ecuset?.forEachIndexed {ecuIndex,it->
             if (it.bustype == bus.bustype) {
                 val above = index % 2 == 1
-
-                sx = (index % 2 + index / 2) * widthPer + (widthPer - ecuWidth) / 2
+                val currWidth = max(ecuWidth, textPaint.measureText(it.ecuname) + textPadding * 2)
+                sx = (index % 2 + index / 2) * widthPer + (widthPer - currWidth) / 2+widthPer/2
                 sy = if (above) {
                     positionY - standLineHeight - ecuHeight
                 } else {
@@ -332,14 +407,15 @@ class EcuState : View {
                 EcuUnit(
                     sx,
                     sy,
-                    ecuWidth,
+                        currWidth,
                     ecuHeight,
-                    Color.BLACK,
+                    Color.parseColor("#333333"),
                     it.ecuname,
                     it.pos,
                     bus.bustype,
                     above,
-                    bus.busname
+                    bus.busname,
+                        "0",ecuIndex
                 ).apply {
                     ecuUnits.add(this)
                     ecuMap[position] = this
@@ -398,21 +474,14 @@ class EcuState : View {
                 if (moveDuration > 200) {
 
                     if( scanning){
-                        this._canvas?.let { scanStart(it) }
+                        this._canvas?.let { startScan(it) }
                     }
                     return true
                 } else {
-
                     Thread {
-
                         val ecuUnit = findEcyByPoint(rawPointx, rawPointy,event.x,event.y)
                         ecuUnit?.apply {
-                            ecuScan=this
-                            scanning=true
-                            sideTop=y+10
-                            postInvalidate(x.toInt(),y.toInt(),(x+width).toInt(),(y+height).toInt())
                             listener?.invoke(this)
-                            Log.i("ken", "388:  = " + this.title);
                         }
                     }.start()
                 }
@@ -424,33 +493,28 @@ class EcuState : View {
         return super.onTouchEvent(event)
     }
 
-    private fun scanStart(canvas: Canvas) {
+    private fun startScan(canvas: Canvas) {
 
-        if(moving) return
+        if(!scanning || moving) return
 
         ecuScan?.apply {
             sideTop+=SCAN_STEP
-            if(sideTop>=y+height){
-                sideTop=y+6
+            if(sideTop>=y+height-2){
+                sideTop=y+3
             }
-            Thread{
+            val sx=(x-4.0f)
+            val yy:Float =(sideTop)
+            val ex:Float=(x+width+4.0f)
+            canvas.drawLine(sx,yy,ex,yy,scanPaint)
+                postInvalidateDelayed(ANIMATION_DELAY)
 
-                val rl = (x + 10.0f + distanceH) * destScale
-                val rt = (sideTop + distanceV).toFloat() * destScale
-                val rr = (x + width - 5.0f + distanceH) * destScale
-                val rb = (sideTop - 6.0f + distanceV) * destScale
-                    canvas.drawOval(
-                        rl,rt,rr,rb,
-                        scanPaint
-                    )
-                    postInvalidateDelayed(ANIMATION_DELAY)
-
-            }.start()
 
 
         }
 
     }
+
+
 
     private fun findEcyByPoint(px: Float, py: Float,rawx:Float=0.0f,rawy:Float=0.0f ): EcuUnit? {
         var result: EcuUnit? = null
@@ -468,29 +532,35 @@ class EcuState : View {
     }
 /** 重置所有布局变量 */
     fun reset() {
+        data_ecubuss.clear()
+        rawData=null
+        loadFlag=false
         this.destMovex = 0.0f
         this.destMovey = 0.0f
         this.destScale = 1.0f
         this.distanceH=0.0f
         this.distanceV=0.0f
         this.scanning=false
+    /** 要改成移动,否则扫描动画不消失 */
         this.moving=true
-        invalidate()
+    postInvalidate()
     }
 
     /** 刷新数据 */
     fun reload(data:BaicBean?){
-        data.apply {
+        reset()
+        data?.apply {
             rawData=this
             loadFlag=true
             scanning=false
+            /** 要改成移动,否则扫描动画不消失 */
             moving=true
-            invalidate()
+            postInvalidate()
         }
     }
 
     /** 添加点击回调 */
-    fun setOnClickListener(listener:onClick){
+    fun setOnSelectListener(listener: onClick){
         this.listener=listener;
     }
 
@@ -500,7 +570,7 @@ class EcuState : View {
         findEcyByPoint?.apply {
             color=ecu.color
         }
-        invalidate()
+        postInvalidate()
     }
 
     fun updateByName(name:String,color:Int){
@@ -510,6 +580,27 @@ class EcuState : View {
             invalidate()
         }
     }
+    fun updateEcu(name:String,newState:String){
+        moving=false
+        val ecuUnit = ecunameMap[name]
+        ecuUnit?.apply {
+            scanning=false
 
+            color= when(newState){
+                "0"-> Color.parseColor("#333333")
+                "2"-> Color.parseColor("#34C759")
+                "3"-> Color.parseColor("#FF4338")
+                "4"-> Color.parseColor("#B8B8B8")
+                else -> Color.BLACK.apply {
+                        ecuScan=ecuUnit
+                        sideTop=y+3
+                        scanning=true
+                }
+            }
+                state=newState
+                ecuScan=this
+                invalidate()
 
+        }
+    }
 }

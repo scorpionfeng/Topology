@@ -1,6 +1,6 @@
 package com.xtooltech.baic
 
-data class DataClass(val baic: List<BaicBean>)
+data class Baics(val baic: List<BaicBean>)
   
 data class BaicBean(
   val vehname: String,
